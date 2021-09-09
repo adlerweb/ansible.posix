@@ -36,7 +36,7 @@ options:
     choices: [ minutes, hours, days, weeks ]
   time:
     description:
-     - A fixed time to execute the command or script file.
+     - A absolute time to execute the command or script file.
     type: str
   state:
     description:
@@ -88,8 +88,8 @@ import tempfile
 from ansible.module_utils.basic import AnsibleModule
 
 
-def add_job_time(module, result, at_cmd, fixed, command, script_file):
-    at_command = "%s -f %s %s" % (at_cmd, script_file, fixed)
+def add_job_time(module, result, at_cmd, time, command, script_file):
+    at_command = "%s -f %s %s" % (at_cmd, script_file, time)
     rc, out, err = module.run_command(at_command, check_rc=True)
     if command:
         os.unlink(script_file)
