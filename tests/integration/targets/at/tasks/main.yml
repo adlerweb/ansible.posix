@@ -45,14 +45,14 @@
     state: present
   when: ansible_distribution in package_distros
 
-- name: run the first example
+- name: run the relative time example
   at:
     command: "ls -d / > /dev/null"
     count: 20
     units: minutes
   register: at_test0
 - debug: var=at_test0
-- name: validate results
+- name: validate relative time results
   assert:
       that:
           - 'at_test0.changed is defined'
@@ -60,3 +60,16 @@
           - 'at_test0.script_file is defined'
           - 'at_test0.state is defined'
           - 'at_test0.units is defined'
+- name: run the absolute time example
+  at:
+    command: "ls -d / > /dev/null"
+    time: 03:00
+  register: at_test1
+- debug: var=at_test1
+- name: validate absolute time results
+  assert:
+      that:
+          - 'at_test1.changed is defined'
+          - 'at_test1.script_file is defined'
+          - 'at_test1.state is defined'
+          - 'at_test1.time is defined'

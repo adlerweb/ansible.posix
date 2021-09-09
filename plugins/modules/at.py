@@ -34,6 +34,10 @@ options:
      - The type of units in the future to execute the command or script file.
     type: str
     choices: [ minutes, hours, days, weeks ]
+  time:
+    description:
+     - A fixed time to execute the command or script file.
+    type: str
   state:
     description:
      - The state dictates if the command or script file should be evaluated as present(added) or absent(deleted).
@@ -69,6 +73,12 @@ EXAMPLES = r'''
     count: 20
     units: minutes
     unique: yes
+
+- name: Schedule a command to execute at 03:00 AM making sure it is unique in the queue
+  ansible.posix.at:
+    command: ls -d / >/dev/null
+    time: 03:00
+    unique: yes
 '''
 
 import os
@@ -78,13 +88,17 @@ import tempfile
 from ansible.module_utils.basic import AnsibleModule
 
 
-def add_job(module, result, at_cmd, count, units, command, script_file):
-    at_command = "%s -f %s now + %s %s" % (at_cmd, script_file, count, units)
+def add_job_time(module, result, at_cmd, fixed, command, script_file):
+    at_command = "%s -f %s %s" % (at_cmd, script_file, fixed)
     rc, out, err = module.run_command(at_command, check_rc=True)
     if command:
         os.unlink(script_file)
     result['changed'] = True
 
+
+def add_job(module, result, at_cmd, count, units, command, script_file):
+    time = "now + %s %s" % (count, units)
+    add_job_time(module, result, at_cmd, time, command, script_file)
 
 def delete_job(module, result, at_cmd, command, script_file):
     for matching_job in get_matching_jobs(module, at_cmd, script_file):
@@ -142,10 +156,14 @@ def main():
             script_file=dict(type='str'),
             count=dict(type='int'),
             units=dict(type='str', choices=['minutes', 'hours', 'days', 'weeks']),
+            time=dict(type='str'),
             state=dict(type='str', default='present', choices=['absent', 'present']),
             unique=dict(type='bool', default=False),
         ),
-        mutually_exclusive=[['command', 'script_file']],
+        mutually_exclusive=[
+            ['command', 'script_file'],
+            ['count', 'time']
+        ],
         required_one_of=[['command', 'script_file']],
         supports_check_mode=False,
     )
@@ -156,11 +174,12 @@ def main():
     script_file = module.params['script_file']
     count = module.params['count']
     units = module.params['units']
+    time = module.params['time']
     state = module.params['state']
     unique = module.params['unique']
 
-    if (state == 'present') and (not count or not units):
-        module.fail_json(msg="present state requires count and units")
+    if (state == 'present') and not time and (not count or not units):
+        module.fail_json(msg="present state requires count and units or time")
 
     result = dict(
         changed=False,
@@ -183,10 +202,14 @@ def main():
             module.exit_json(**result)
 
     result['script_file'] = script_file
-    result['count'] = count
-    result['units'] = units
 
-    add_job(module, result, at_cmd, count, units, command, script_file)
+    if time:
+        add_job_time(module, result, at_cmd, time, command, script_file)
+        result['time'] = time
+    else:
+        add_job(module, result, at_cmd, count, units, command, script_file)
+        result['count'] = count
+        result['units'] = units
 
     module.exit_json(**result)
 
