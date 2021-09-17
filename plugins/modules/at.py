@@ -38,6 +38,12 @@ options:
     description:
      - A absolute time to execute the command or script file.
     type: str
+  utc:
+    description:
+    - Use UTC instead of the targets local timezone.
+    - When not using UTC commands may not be executed at the same time if target systems use different timezones.
+    type: bool
+    default: yes
   state:
     description:
      - The state dictates if the command or script file should be evaluated as present(added) or absent(deleted).
@@ -74,10 +80,17 @@ EXAMPLES = r'''
     units: minutes
     unique: yes
 
-- name: Schedule a command to execute at 03:00 AM making sure it is unique in the queue
+- name: Schedule a command to execute at 03:00 AM UTC making sure it is unique in the queue
   ansible.posix.at:
     command: ls -d / >/dev/null
     time: 03:00
+    unique: yes
+
+- name: Schedule a command to execute at 03:00 AM local time making sure it is unique in the queue
+  ansible.posix.at:
+    command: ls -d / >/dev/null
+    time: 03:00
+    utc: no
     unique: yes
 '''
 
@@ -94,7 +107,6 @@ def add_job_time(module, result, at_cmd, time, command, script_file):
     if command:
         os.unlink(script_file)
     result['changed'] = True
-
 
 def add_job(module, result, at_cmd, count, units, command, script_file):
     time = "now + %s %s" % (count, units)
@@ -157,6 +169,7 @@ def main():
             count=dict(type='int'),
             units=dict(type='str', choices=['minutes', 'hours', 'days', 'weeks']),
             time=dict(type='str'),
+            utc=dict(type='bool', default=True),
             state=dict(type='str', default='present', choices=['absent', 'present']),
             unique=dict(type='bool', default=False),
         ),
@@ -175,6 +188,7 @@ def main():
     count = module.params['count']
     units = module.params['units']
     time = module.params['time']
+    utc = module.params['utc']
     state = module.params['state']
     unique = module.params['unique']
 
@@ -204,6 +218,8 @@ def main():
     result['script_file'] = script_file
 
     if time:
+        if utc:
+            time = time + " utc"
         add_job_time(module, result, at_cmd, time, command, script_file)
         result['time'] = time
     else:
