@@ -86,7 +86,7 @@ EXAMPLES = r'''
     time: 03:00
     unique: yes
 
-- name: Schedule a command to execute at 03:00 AM local time making sure it is unique in the queue
+- name: Schedule a command to execute at 03:00 AM local time, depending on the target's configuration, making sure it is unique in the queue
   ansible.posix.at:
     command: ls -d / >/dev/null
     time: 03:00
